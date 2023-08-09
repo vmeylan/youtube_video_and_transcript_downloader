@@ -7,6 +7,9 @@ from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, No
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 from pytube import YouTube, exceptions
+# To download videos and transcripts from private Channels or Playlists
+from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 
 # Load environment variables from the .env file
@@ -40,6 +43,15 @@ def background(f):
 
     return wrapped
 
+def authenticate_service_account(service_account_file: str) -> Credentials:
+    """Authenticates using service account and returns the session."""
+
+    credentials = ServiceAccountCredentials.from_service_account_file(
+        service_account_file,
+        scopes=["https://www.googleapis.com/auth/youtube.readonly"]
+    )
+    return credentials
+
 
 def download_video(video_url: str, output_path: str, video_title: str):
     """Downloads a video using pytube and saves it in the specified directory.
@@ -62,7 +74,7 @@ def download_video(video_url: str, output_path: str, video_title: str):
         print(f"Pytube error occurred while downloading {video_url}. Error: {e}")
 
 
-def get_video_info(api_key: str, channel_id: str, max_results: int = 500000) -> List[dict]:
+def get_video_info(credentials: Credentials, api_key: str, channel_id: str, max_results: int = 500000) -> List[dict]:
     """
     Retrieves video information (URL, ID, and title) from a YouTube channel using the YouTube Data API.
 
@@ -74,7 +86,11 @@ def get_video_info(api_key: str, channel_id: str, max_results: int = 500000) -> 
     Returns:
         list: A list of dictionaries containing video URL, ID, and title from the channel.
     """
-    youtube = build('youtube', 'v3', developerKey=api_key)
+    # Initialize the YouTube API client
+    if credentials is None:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+    else:
+        youtube = build('youtube', 'v3', credentials=credentials, developerKey=api_key)
 
     # Get the "Uploads" playlist ID
     channel_request = youtube.channels().list(
@@ -189,7 +205,7 @@ def parse_video(video_info: Dict[str, str], dir_path: str) -> None:
         except Exception as e:
             print(f'Error fetching .mp4 for {video_info["url"]} with title {video_title} and error: [{e}]')
 
-def get_channel_id(api_key: str, channel_name: str) -> Optional[str]:
+def get_channel_id(credentials: Optional[Credentials], api_key: str, channel_name: str) -> Optional[str]:
     """
     Get the channel ID of a YouTube channel by its name.
 
@@ -200,9 +216,11 @@ def get_channel_id(api_key: str, channel_name: str) -> Optional[str]:
     Returns:
         Optional[str]: The channel ID if found, otherwise None.
     """
-
     # Initialize the YouTube API client
-    youtube = build('youtube', 'v3', developerKey=api_key)
+    if credentials is None:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+    else:
+        youtube = build('youtube', 'v3', credentials=credentials, developerKey=api_key)
 
     # Create a search request to find the channel by name
     request = youtube.search().list(
@@ -226,7 +244,7 @@ def get_channel_id(api_key: str, channel_name: str) -> Optional[str]:
         return None
 
 
-def get_playlist_title(api_key: str, playlist_id: str) -> Optional[str]:
+def get_playlist_title(credentials: Credentials, api_key: str, playlist_id: str) -> Optional[str]:
     """
     Retrieves the title of a YouTube playlist using the YouTube Data API.
 
@@ -237,7 +255,11 @@ def get_playlist_title(api_key: str, playlist_id: str) -> Optional[str]:
     Returns:
         Optional[str]: The title of the playlist if found, otherwise None.
     """
-    youtube = build('youtube', 'v3', developerKey=api_key)
+    # Initialize the YouTube API client
+    if credentials is None:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+    else:
+        youtube = build('youtube', 'v3', credentials=credentials, developerKey=api_key)
 
     request = youtube.playlists().list(
         part='snippet',
@@ -254,8 +276,12 @@ def get_playlist_title(api_key: str, playlist_id: str) -> Optional[str]:
         return None
 
 
-def get_videos_from_playlist(api_key: str, playlist_id: str, max_results: int = 50) -> List[dict]:
-    youtube = build('youtube', 'v3', developerKey=api_key)
+def get_videos_from_playlist(credentials: Credentials, api_key: str, playlist_id: str, max_results: int = 5000) -> List[dict]:
+    # Initialize the YouTube API client
+    if credentials is None:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+    else:
+        youtube = build('youtube', 'v3', credentials=credentials, developerKey=api_key)
 
     video_info = []
     next_page_token = None
@@ -298,15 +324,23 @@ def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Opt
         api_key (str): Your YouTube Data API key.
         yt_channels (List[str]): A list of YouTube channel names.
     """
+    service_account_file = os.environ.get('SERVICE_ACCOUNT_FILE')
+    credentials = None
+
+    if service_account_file:
+        credentials = authenticate_service_account(service_account_file)
+        print("Service account file found. Proceeding with public or private channels or playlists.")
+    else:
+        print("No service account file found. Proceeding with public channels or playlists.")
 
     # Create a dictionary with channel IDs as keys and channel names as values
-    yt_id_name = {get_channel_id(api_key=api_key, channel_name=name): name for name in yt_channels}
+    yt_id_name = {get_channel_id(credentials=credentials, api_key=api_key, channel_name=name): name for name in yt_channels}
 
     # Iterate through the dictionary of channel IDs and channel names
     for channel_id, channel_name in yt_id_name.items():
 
         # Get video information from the channel
-        video_info_list = get_video_info(api_key, channel_id)
+        video_info_list = get_video_info(credentials, api_key, channel_id)
 
         # Create a 'data' directory if it does not exist
         dir_path = 'data'
@@ -327,11 +361,11 @@ def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Opt
 
     if yt_playlists:
         for playlist_id in yt_playlists:
-            playlist_title = get_playlist_title(api_key, playlist_id)
+            playlist_title = get_playlist_title(credentials, api_key, playlist_id)
             # Ensure the title is filesystem-friendly (replacing slashes, for example)
             playlist_title = playlist_title.replace('/', '_') if playlist_title else f"playlist_{playlist_id}"
 
-            video_info_list = get_videos_from_playlist(api_key, playlist_id)
+            video_info_list = get_videos_from_playlist(credentials, api_key, playlist_id)
 
             dir_path = 'data'
             if not os.path.exists(dir_path):

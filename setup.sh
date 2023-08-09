@@ -15,6 +15,7 @@ YOUTUBE_API_KEY=<Your_Youtube_API_Key>
 YOUTUBE_CHANNELS=<Channel1>,<Channel2>,...
 YOUTUBE_PLAYLISTS=<Playlist1>,<Playlist2>,...
 DOWNLOAD_VIDEO=True
+SERVICE_ACCOUNT_FILE=<Your_Service_Account_Json_File_Path>
 EOL
 
 # give user a notice
