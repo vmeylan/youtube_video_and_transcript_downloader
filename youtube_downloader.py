@@ -226,12 +226,75 @@ def get_channel_id(api_key: str, channel_name: str) -> Optional[str]:
         return None
 
 
-def run(api_key: str, yt_channels: List[str]):
+def get_playlist_title(api_key: str, playlist_id: str) -> Optional[str]:
+    """
+    Retrieves the title of a YouTube playlist using the YouTube Data API.
+
+    Args:
+        api_key (str): Your YouTube Data API key.
+        playlist_id (str): The YouTube playlist ID.
+
+    Returns:
+        Optional[str]: The title of the playlist if found, otherwise None.
+    """
+    youtube = build('youtube', 'v3', developerKey=api_key)
+
+    request = youtube.playlists().list(
+        part='snippet',
+        id=playlist_id,
+        fields='items(snippet/title)',
+        maxResults=1
+    )
+    response = request.execute()
+    items = response.get('items', [])
+
+    if items:
+        return items[0]['snippet']['title']
+    else:
+        return None
+
+
+def get_videos_from_playlist(api_key: str, playlist_id: str, max_results: int = 50) -> List[dict]:
+    youtube = build('youtube', 'v3', developerKey=api_key)
+
+    video_info = []
+    next_page_token = None
+
+    while True:
+        playlist_request = youtube.playlistItems().list(
+            part="snippet",
+            playlistId=playlist_id,
+            maxResults=max_results,
+            pageToken=next_page_token,
+            fields="nextPageToken,items(snippet(publishedAt,resourceId(videoId),title))"
+        )
+        playlist_response = playlist_request.execute()
+        items = playlist_response.get('items', [])
+
+        for item in items:
+            video_id = item["snippet"]["resourceId"]["videoId"]
+            video_info.append({
+                'url': f'https://www.youtube.com/watch?v={video_id}',
+                'id': video_id,
+                'title': item["snippet"]["title"],
+                'publishedAt': item["snippet"]["publishedAt"]
+            })
+
+        next_page_token = playlist_response.get("nextPageToken")
+
+        if next_page_token is None or len(video_info) >= max_results:
+            break
+
+    return video_info
+
+
+def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Optional[List[str]] = None):
     """
     Run function that takes a YouTube Data API key and a list of YouTube channel names, fetches video transcripts,
     and saves them as .txt files in a data directory.
 
     Args:
+        yt_playlists:
         api_key (str): Your YouTube Data API key.
         yt_channels (List[str]): A list of YouTube channel names.
     """
@@ -262,28 +325,52 @@ def run(api_key: str, yt_channels: List[str]):
         tasks = itertools.starmap(parse_video, args)
         loop.run_until_complete(asyncio.gather(*tasks))
 
+    if yt_playlists:
+        for playlist_id in yt_playlists:
+            playlist_title = get_playlist_title(api_key, playlist_id)
+            # Ensure the title is filesystem-friendly (replacing slashes, for example)
+            playlist_title = playlist_title.replace('/', '_') if playlist_title else f"playlist_{playlist_id}"
+
+            video_info_list = get_videos_from_playlist(api_key, playlist_id)
+
+            dir_path = 'data'
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+
+            dir_path += f'/{playlist_title}'
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+
+            loop = asyncio.get_event_loop()
+            args = [(video_info, dir_path) for video_info in video_info_list]
+
+            tasks = itertools.starmap(parse_video, args)
+            loop.run_until_complete(asyncio.gather(*tasks))
+
 
 if __name__ == '__main__':
-    # Set up command line argument parser
     parser = argparse.ArgumentParser(description='Fetch YouTube video transcripts.')
     parser.add_argument('--api_key', type=str, help='YouTube Data API key')
     parser.add_argument('--channels', nargs='+', type=str, help='YouTube channel names or IDs')
+    parser.add_argument('--playlists', nargs='+', type=str, help='YouTube playlist IDs')
 
-    # Parse command line arguments
     args = parser.parse_args()
 
-    # Get the API key from command line arguments or environment variable
     api_key = args.api_key or os.environ.get('YOUTUBE_API_KEY')
-
     if not api_key:
         raise ValueError("No API key provided. Please provide an API key via command line argument or .env file.")
 
-    # Get the list of channels from command line arguments or environment variable
     yt_channels = args.channels or os.environ.get('YOUTUBE_CHANNELS')
     if yt_channels:
         yt_channels = [channel.strip() for channel in yt_channels.split(',')]
-    else:
-        raise ValueError("No channels provided. Please provide channel names or IDs via command line argument or .env file.")
 
-    run(api_key, yt_channels)
+    yt_playlists = args.playlists or os.environ.get('YOUTUBE_PLAYLISTS')
+    if yt_playlists:
+        yt_playlists = [playlist.strip() for playlist in yt_playlists.split(',')]
+
+    if not yt_channels and not yt_playlists:
+        raise ValueError(
+            "No channels or playlists provided. Please provide channel names, IDs, or playlist IDs via command line argument or .env file.")
+
+    run(api_key, yt_channels, yt_playlists)
 
