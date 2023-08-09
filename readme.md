@@ -1,33 +1,44 @@
-## YouTube Transcript and Video Downloader
+# YouTube Transcript Downloader
 
-### Description:
-This script downloads transcripts of videos from given YouTube channels. Optionally, it can also download the videos.
+This script fetches transcripts of videos from specified YouTube channels or playlists and saves them as .txt files. Optionally, it can also download the corresponding videos.
 
-### Setup:
-1. Ensure you have Python 3.6 or newer installed.
-2. Install the required packages: 
-`pip install -r requirements.txt`
+## Requirements
 
-3. Set up a `.env` file with the following environment variables:
-- `YOUTUBE_API_KEY`: Your YouTube Data API key.
-- `YOUTUBE_CHANNELS`: Comma-separated list of YouTube channel names or IDs.
-- `DOWNLOAD_VIDEO`: Set to `True` if you want to download videos along with transcripts. Default is `True`.
+- A valid YouTube Data API key.
+- Python packages: `asyncio`, `itertools`, `os`, `argparse`, `youtube_transcript_api`, `googleapiclient`, `dotenv`, and `pytube`.
 
-### Usage:
-You can run the script in two ways:
+## Setup
 
-1. **Using environment variables**:
-Simply execute the script.
-`python youtube_downloader.py`
+1. Clone this repository:
+git clone [your-repository-link]
+cd [your-repository-directory]
 
-2. **Using command-line arguments**:
-`python youtube_downloader.py --api_key YOUR_YOUTUBE_API_KEY --channels CHANNEL_NAME_OR_ID [ANOTHER_CHANNEL_NAME_OR_ID ...]`
+2. Run the setup.sh script to install the required Python packages and setup the .env file in the root directory.
+3. Replace `'YOUR_YOUTUBE_API_KEY'` with your actual YouTube Data API key and adjust other parameters as needed.
+4. Populate channels IDs in `YOUTUBE_CHANNELS` or playlists IDs `YOUTUBE_PLAYLISTS` separated by commas  
+
+## Usage
+
+To fetch transcripts and optionally download videos, run the following command:
+`python script_name.py --api_key 'YOUR_YOUTUBE_API_KEY' --channels 'channel_name_1 channel_name_2 ...' --playlists 'playlist_id_1 playlist_id_2 ...'`
 
 
-### Output:
-Transcripts will be saved as `.txt` files in the `data` directory, organized by channel name. If `DOWNLOAD_VIDEO` is set to `True`, videos will also be downloaded to the respective channel directory.
+- `'YOUR_YOUTUBE_API_KEY'`: Replace this with your YouTube Data API key.
+- `'channel_name_1 channel_name_2 ...'`: A space-separated list of YouTube channel names or IDs.
+- `'playlist_id_1 playlist_id_2 ...'`: A space-separated list of YouTube playlist IDs.
 
-### Additional Notes:
-- The script processes channels and videos concurrently for efficiency using `asyncio`.
-- The `DOWNLOAD_VIDEO` option is only available through the `.env` file.
-- The script handles both channels specified by name or directly by ID.
+Alternatively, if you've set up the `.env` file as instructed above, you can simply run: `python youtube_download.py`
+
+This will use the API key and other parameters specified in the `.env` file.
+
+## Note
+
+- Transcripts are saved in a directory named `data`, with subdirectories for each channel or playlist. Each video's transcript is saved as a .txt file named using the video's title.
+- The script uses the `youtube_transcript_api` to fetch transcripts. If a transcript is not available for a particular video, the script will skip that video and continue with the next.
+- By setting the `DOWNLOAD_VIDEO` environment variable to `True`, the script will also download the videos corresponding to the transcripts. Videos are saved as .mp4 files in the same directories as the transcripts.
+
+## Contributing
+
+If you have suggestions or improvements, feel free to submit a pull request or open an issue.
+
+
