@@ -6,9 +6,12 @@ from typing import List, Optional, Dict
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
+from pytube import YouTube, exceptions
+
 
 # Load environment variables from the .env file
 load_dotenv()
+DOWNLOAD_VIDEO = os.environ.get('DOWNLOAD_VIDEO', 'True').lower() == 'true'
 
 
 def background(f):
@@ -36,6 +39,27 @@ def background(f):
         return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
 
     return wrapped
+
+
+def download_video(video_url: str, output_path: str, video_title: str):
+    """Downloads a video using pytube and saves it in the specified directory.
+
+    Args:
+        video_title (str): Title of the video to download
+        video_url (str): URL of the video to download.
+        output_path (str): Directory path to save the downloaded video.
+    """
+    try:
+        yt = YouTube(video_url)
+        stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+        if not stream:
+            print(f"No suitable stream found for {video_url}")
+            return
+
+        stream.download(output_path=output_path, filename=f"{video_title}.mp4")
+
+    except exceptions.PytubeError as e:
+        print(f"Pytube error occurred while downloading {video_url}. Error: {e}")
 
 
 def get_video_info(api_key: str, channel_id: str, max_results: int = 500000) -> List[dict]:
@@ -110,13 +134,18 @@ def parse_video(video_info: Dict[str, str], dir_path: str) -> None:
 
     try:
         # Format video title and published date for file naming
-        video_title = video_info['title'].replace(' ', '_').replace('/', '_')
+        video_title = video_info['title'].replace('/', '_')
         strlen = len("yyyy-mm-dd")
         published_at = video_info['publishedAt'].replace(':', '-').replace('.', '-')[:strlen]
         video_title = f"{published_at}_{video_title}"
 
+        # Create a specific directory for this video if it doesn't exist
+        video_dir_path = os.path.join(dir_path, video_title)
+        if not os.path.exists(video_dir_path):
+            os.makedirs(video_dir_path)
+
         # Create the file path for the transcript
-        file_path = os.path.join(dir_path, f'{video_title}.txt')
+        file_path = os.path.join(video_dir_path, f'{video_title}.txt')
 
         # If the file already exists, skip it
         if os.path.exists(file_path):
@@ -147,10 +176,18 @@ def parse_video(video_info: Dict[str, str], dir_path: str) -> None:
                 f.write(f"{line['text']} ")
 
         print(f'Successfully saved transcript for {video_info["url"]} as {file_path}')
-
     except Exception as e:
         print(f'Error fetching transcript for {video_info["url"]} with title {video_title}: {e}')
 
+    if DOWNLOAD_VIDEO:
+        try:
+            # After saving the transcript, download the video
+            print(f"Downloading video for {video_info['url']} to {video_dir_path}")
+            download_video(video_info['url'], video_dir_path, video_title)
+
+            print(f'Finished processing {video_info["url"]} with title {video_title}')
+        except Exception as e:
+            print(f'Error fetching .mp4 for {video_info["url"]} with title {video_title} and error: [{e}]')
 
 def get_channel_id(api_key: str, channel_name: str) -> Optional[str]:
     """
