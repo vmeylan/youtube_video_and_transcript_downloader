@@ -329,7 +329,7 @@ def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Opt
 
     if service_account_file:
         credentials = authenticate_service_account(service_account_file)
-        print("Service account file found. Proceeding with public or private channels or playlists.")
+        print("Service account file found. Proceeding with public channels, playlists, or private videos if accessible via Google Service Account.")
     else:
         print("No service account file found. Proceeding with public channels or playlists.")
 
@@ -343,7 +343,7 @@ def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Opt
         video_info_list = get_video_info(credentials, api_key, channel_id)
 
         # Create a 'data' directory if it does not exist
-        dir_path = 'data'
+        dir_path = '../../../data'
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
@@ -367,7 +367,7 @@ def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Opt
 
             video_info_list = get_videos_from_playlist(credentials, api_key, playlist_id)
 
-            dir_path = 'data'
+            dir_path = '../../../data'
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
 
