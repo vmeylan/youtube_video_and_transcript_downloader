@@ -42,14 +42,14 @@ def extract_and_save_links_by_domain(file_path, save_dir="data"):
             link = abstract_to_pdf_url(link)
 
         if domain in domain_links:
-            domain_links[domain].append(link)
+            domain_links[domain].add(link)
         else:
-            domain_links[domain] = [link]
+            domain_links[domain] = {link}
 
     # Save links into separate .txt files based on domain
-    for domain, domain_links in domain_links.items():
+    for domain, domain_links_set in domain_links.items():
         with open(os.path.join(save_dir, f"{domain}.txt"), 'w') as file:
-            file.write("\n".join(domain_links))
+            file.write("\n".join(sorted(list(domain_links_set))))  # Convert set back to a list for saving
 
     print(f"Processed and saved links in '{save_dir}' directory.")
 
