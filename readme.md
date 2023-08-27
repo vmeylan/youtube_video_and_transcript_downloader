@@ -2,7 +2,7 @@
 
 This script fetches transcripts of videos from specified YouTube channels or playlists and saves them as .txt files. Optionally, it can also download the corresponding videos. 
 
-It can fetch private videos if access is granted to Google Service Accounts on a private video by private video basis. Unfortunately there is no direct way of scaling the download process to private playlists or whole channels as of writing date.
+It can fetch private videos if access is granted to Google Service Accounts on a private video by private video basis. Unfortunately, there is no direct way of scaling the download process to private playlists as of the writing date.
 
 ## Requirements
 
