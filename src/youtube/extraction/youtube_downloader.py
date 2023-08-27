@@ -201,7 +201,7 @@ def parse_video(video_info: Dict[str, str], dir_path: str) -> None:
             print(f"Downloading video for {video_info['url']} to {video_dir_path}")
             download_video(video_info['url'], video_dir_path, video_title)
 
-            print(f'Finished processing {video_info["url"]} with title {video_title}')
+            print(f'Successfully downloaded .mp4 of {video_title} ({video_info["url"]})')
         except Exception as e:
             print(f'Error fetching .mp4 for {video_info["url"]} with title {video_title} and error: [{e}]')
 
@@ -314,6 +314,17 @@ def get_videos_from_playlist(credentials: Credentials, api_key: str, playlist_id
     return video_info
 
 
+def get_root_directory():
+    current_dir = os.getcwd()
+
+    while True:
+        if '.git' in os.listdir(current_dir):
+            return current_dir
+        else:
+            # Go up one level
+            current_dir = os.path.dirname(current_dir)
+
+
 def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Optional[List[str]] = None):
     """
     Run function that takes a YouTube Data API key and a list of YouTube channel names, fetches video transcripts,
@@ -342,8 +353,9 @@ def run(api_key: str, yt_channels: Optional[List[str]] = None, yt_playlists: Opt
         # Get video information from the channel
         video_info_list = get_video_info(credentials, api_key, channel_id)
 
-        # Create a 'data' directory if it does not exist
-        dir_path = '../../../data'
+        root_directory = get_root_directory()
+        dir_path = f"{root_directory}/data/"
+
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
