@@ -12,14 +12,8 @@ pip install -r requirements.txt
 # create a local .env file with the specified default values
 cat <<EOL > .env
 YOUTUBE_API_KEY=<Your_Youtube_API_Key>
-YOUTUBE_CHANNELS=<Channel1>,<Channel2>,...
-YOUTUBE_PLAYLISTS=<Playlist1>,<Playlist2>,...
-DOWNLOAD_VIDEO=True
-SERVICE_ACCOUNT_FILE=
+ASSEMBLY_AI_API_KEYS=<Your_Assembly_AI_key>
 EOL
 
 # give user a notice
 echo "A .env file has been created. Please update its values with your API key, channels, and playlists."
-
-# deactivate virtual environment
-deactivate

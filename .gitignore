@@ -1,3 +1,5 @@
 venv/
 env/
 .env
+logs/
+.idea
